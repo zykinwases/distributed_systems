@@ -1,0 +1,99 @@
+--0-- entring critical section
+--2-- sending request to 0
+--4-- sending request to 1
+--5-- sending request to 2
+--2-- redirecting request from 5 to 0
+--3-- sending request to 1
+--1-- sending request to 0
+--1-- redirecting request from 3 to 0
+--1-- redirecting request from 4 to 0
+--6-- sending request to 2
+--2-- redirecting request from 6 to 0
+--7-- sending request to 3
+--3-- redirecting request from 7 to 1
+--1-- redirecting request from 3 to 0
+--0-- leaving critical section
+--0-- sending marker to 1
+--0-- redirecting request from 2 to 1
+--0-- redirecting request from 2 to 1
+--0-- redirecting request from 1 to 1
+--0-- redirecting request from 1 to 1
+--0-- redirecting request from 2 to 1
+--0-- redirecting request from 1 to 1
+--1-- recieved marker from 0
+--1-- entring critical section
+--1-- leaving critical section
+--1-- sending marker to 0
+--1-- redirecting request from 0 to 0
+--1-- redirecting request from 0 to 0
+--1-- redirecting request from 0 to 0
+--1-- redirecting request from 0 to 0
+--1-- redirecting request from 0 to 0
+--0-- redirecting marker from 1 to 2
+--0-- redirecting request from 1 to 2
+--0-- redirecting request from 1 to 2
+--0-- redirecting request from 1 to 2
+--0-- redirecting request from 1 to 2
+--2-- recieved marker from 0
+--2-- entring critical section
+--0-- redirecting request from 1 to 2
+--2-- leaving critical section
+--2-- sending marker to 0
+--2-- redirecting request from 0 to 0
+--2-- redirecting request from 0 to 0
+--2-- redirecting request from 0 to 0
+--2-- redirecting request from 0 to 0
+--0-- redirecting marker from 2 to 2
+--0-- redirecting request from 2 to 2
+--0-- redirecting request from 2 to 2
+--0-- redirecting request from 2 to 2
+--0-- redirecting request from 2 to 2
+--2-- redirecting marker from 0 to 5
+--2-- redirecting request from 0 to 5
+--2-- redirecting request from 0 to 5
+--2-- redirecting request from 0 to 5
+--2-- redirecting request from 0 to 5
+--5-- recieved marker from 2
+--5-- entring critical section
+--5-- leaving critical section
+--5-- sending marker to 2
+--5-- redirecting request from 2 to 2
+--5-- redirecting request from 2 to 2
+--5-- redirecting request from 2 to 2
+--2-- redirecting marker from 5 to 6
+--2-- redirecting request from 5 to 6
+--2-- redirecting request from 5 to 6
+--2-- redirecting request from 5 to 6
+--6-- recieved marker from 2
+--6-- entring critical section
+--6-- leaving critical section
+--6-- sending marker to 2
+--6-- redirecting request from 2 to 2
+--6-- redirecting request from 2 to 2
+--2-- redirecting marker from 6 to 0
+--0-- redirecting marker from 2 to 1
+--2-- redirecting request from 6 to 0
+--0-- redirecting request from 2 to 1
+--2-- redirecting request from 6 to 0
+--0-- redirecting request from 2 to 1
+--1-- redirecting marker from 0 to 3
+--1-- redirecting request from 0 to 3
+--1-- redirecting request from 0 to 3
+--3-- recieved marker from 1
+--3-- entring critical section
+--3-- leaving critical section
+--3-- sending marker to 1
+--3-- redirecting request from 1 to 1
+--1-- redirecting marker from 3 to 4
+--1-- redirecting request from 3 to 4
+--4-- recieved marker from 1
+--4-- entring critical section
+--4-- leaving critical section
+--4-- sending marker to 1
+--1-- redirecting marker from 4 to 3
+--3-- redirecting marker from 1 to 7
+--7-- recieved marker from 3
+--7-- entring critical section
+--7-- leaving critical section
+[mpiexec@yarik] Sending Ctrl-C to processes as requested
+[mpiexec@yarik] Press Ctrl-C again to force abort
