@@ -365,7 +365,7 @@ static void err_handler(MPI_Comm *pcomm, int *perr, ...) {
     MPI_Error_string(err, errstr, &len);
     printf("\nRank %d / %d: Notified of error %s.\n", my_rank, size-1, errstr);
 
-    // создаем новый коммуникатор без вышедшего из строя процесса
+    // new comm without dead process
     MPIX_Comm_shrink(comm_main, &comm_main);
     MPI_Comm_rank(comm_main, &my_rank);
     itoa(my_rank, filename);
