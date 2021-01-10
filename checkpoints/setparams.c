@@ -755,7 +755,7 @@ void write_ep_info(FILE *fp, char class)
 #define VERBOSE
 #define LL 400
 #include <stdio.h>
-#define DEFFILE "../config/make.def"
+#define DEFFILE "./make.def"
 #define DEFAULT_MESSAGE "(none)"
 FILE *deffile;
 void write_compiler_info(int type, FILE *fp)
@@ -808,7 +808,7 @@ setparams: File %s doesn't exist. To build the NAS benchmarks\n\
     check_line(line, "CMPI_INC", cmpi_inc);
     /* if the dummy library is used by including make.dummy, we set the
        Fortran and C paths to libraries and headers accordingly     */
-    if(check_include_line(line, "../config/make.dummy")) {
+    if(check_include_line(line, "./make.dummy")) {
        strcpy(fmpi_lib, "-L../MPI_dummy -lmpi");
        strcpy(fmpi_inc, "-I../MPI_dummy");
        strcpy(cmpi_lib, "-L../MPI_dummy -lmpi");

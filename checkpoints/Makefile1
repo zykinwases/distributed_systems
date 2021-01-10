@@ -1,4 +1,4 @@
-include ../config/make.def
+include ./make.def
 
 # Note that COMPILE is also defined in make.common and should
 # be the same. We can't include make.common because it has a lot
@@ -12,7 +12,7 @@ all: setparams
 # configuration. npbparams.h also contains info about how a benchmark
 # was compiled and linked
 
-setparams: setparams.c ../config/make.def
+setparams: setparams.c ./make.def
 	$(CC) ${CONVERTFLAG} -o setparams setparams.c
 
 

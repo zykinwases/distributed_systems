@@ -224,7 +224,7 @@ typedef  int  KEY_TYPE;
 /********************/
 int      my_rank, np_total,
          comm_size;
-MPI_Comm comm_work;
+MPI_Comm comm_main, comm_work;
 
 
 /********************/
@@ -243,8 +243,8 @@ int      passed_verification;
 /* These are the three main arrays. */
 /* See SIZE_OF_BUFFERS def above    */
 /************************************/
-INT_TYPE *key_array,    
-         *key_buff1,    
+INT_TYPE *key_array, ar_size,   
+         *key_buff1,   
          *key_buff2,
          bucket_size[NUM_BUCKETS+TEST_ARRAY_SIZE],     /* Top 5 elements for */
          bucket_size_totals[NUM_BUCKETS+TEST_ARRAY_SIZE], /* part. ver. vals */
@@ -252,7 +252,7 @@ INT_TYPE *key_array,
          process_bucket_distrib_ptr1[NUM_BUCKETS+TEST_ARRAY_SIZE],   
          process_bucket_distrib_ptr2[NUM_BUCKETS+TEST_ARRAY_SIZE];   
 int      *send_count, *recv_count,
-         *send_displ, *recv_displ;
+         *send_displ, *recv_displ, sr_size;
 
 
 /**********************/
@@ -326,7 +326,80 @@ void c_print_results( char   *name,
                       char   *cflags,
                       char   *clinkflags );
 
-#include "../common/c_timers.h"
+/*ERROR HANDLING BEGINNING*/
+
+#include "mpi-ext.h"
+#include <signal.h>
+
+char filename[10];
+int error_occured = 0;
+int dead_proc[9][2];
+int last_proc;
+
+void itoa(int n, char s[])
+{
+    int i = 0;
+    do {
+        s[i++] = n % 10 + '0';
+    } while ((n /= 10) > 0);
+    s[i] = '\0';
+    int j, k;
+    char c;
+    for (j = 0, k = strlen(s)-1; j < k; j++, k--) {
+        c = s[j];
+        s[j] = s[k];
+        s[k] = c;
+    }
+}
+
+static void err_handler(MPI_Comm *pcomm, int *perr, ...) {
+    error_occured = 1;
+    int err = *perr;
+    char errstr[MPI_MAX_ERROR_STRING];
+    int size, nf, len;
+    MPI_Group group_f;
+
+    error_occured = 1;
+    MPI_Comm_size(comm_main, &size);
+    MPIX_Comm_failure_ack(comm_main);
+    MPIX_Comm_failure_get_acked(comm_main, &group_f);
+    MPI_Group_size(group_f, &nf);
+    MPI_Error_string(err, errstr, &len);
+    printf("\nRank %d / %d: Notified of error %s.\n", my_rank, size-1, errstr);
+
+    // создаем новый коммуникатор без вышедшего из строя процесса
+    MPIX_Comm_shrink(comm_main, &comm_main);
+    MPI_Comm_rank(comm_main, &my_rank);
+    itoa(my_rank, filename);
+    strcat(filename, ".txt");
+    if (my_rank < comm_size) {
+      MPI_Comm_split(comm_main, 0, my_rank, &comm_work); //working processes
+    } else {
+      MPI_Comm_split(comm_main, 1, my_rank, &comm_work); //reserve processes
+    }
+}
+
+void dump() {
+    FILE *fp = fopen(filename, "w");
+    fprintf(fp, "%d\n", passed_verification);
+    for (int i = 0; i < num_keys; ++i) {
+        fprintf(fp, "%d ", key_array[i]);
+    }
+    fclose(fp);
+}
+
+void restore() {
+    FILE *fp = fopen(filename, "r");
+    fscanf(fp, "%d", &passed_verification);
+    for (int i = 0; i < num_keys; ++i) {
+        fscanf(fp, "%d", &key_array[i]);
+    }
+    fclose(fp);
+}
+
+/*ERROR HANDLING END*/
+
+#include "c_timers.h"
 
 
 /*****************************************************************/
@@ -351,11 +424,13 @@ void alloc_space(void)
    key_array = (INT_TYPE *)malloc(sizeof(INT_TYPE)*size_of_buffers);
    key_buff1 = (INT_TYPE *)malloc(sizeof(INT_TYPE)*size_of_buffers);
    key_buff2 = (INT_TYPE *)malloc(sizeof(INT_TYPE)*size_of_buffers);
+   ar_size = sizeof(INT_TYPE)*size_of_buffers;
 
    send_count = (int *)malloc(sizeof(int)*comm_size);
    recv_count = (int *)malloc(sizeof(int)*comm_size);
    send_displ = (int *)malloc(sizeof(int)*comm_size);
    recv_displ = (int *)malloc(sizeof(int)*comm_size);
+   sr_size = sizeof(int)*comm_size;
 
    if (!key_array || !key_buff1 || !key_buff2 ||
        !send_count || !recv_count || !send_displ || !recv_displ) {
@@ -363,6 +438,11 @@ void alloc_space(void)
       MPI_Abort(MPI_COMM_WORLD, 1);
       exit(1);
    }
+
+    for (int i = 0; i < 9; i++) {
+      dead_proc[i][0] = i%comm_size;
+      dead_proc[i][1] = i+1;
+    }
 }
 
 
@@ -640,8 +720,6 @@ void rank( int iteration )
     INT_TYPE    min_key_val, max_key_val;
     INT_TYPE    *key_buff_ptr;
 
-
-
     TIMER_START( T_RANK );
 
 /*  Iteration alteration of keys */  
@@ -650,7 +728,6 @@ void rank( int iteration )
       key_array[iteration] = iteration;
       key_array[iteration+MAX_ITERATIONS] = MAX_KEY - iteration;
     }
-
 
 /*  Initialize */
     for( i=0; i<NUM_BUCKETS+TEST_ARRAY_SIZE; i++ )  
@@ -767,7 +844,6 @@ void rank( int iteration )
     recv_displ[0] = 0;
     for( i=1; i<comm_size; i++ )
         recv_displ[i] = recv_displ[i-1] + recv_count[i-1];
-
 
 /*  Now send the keys to respective processors  */    
     MPI_Alltoallv( key_buff1,
@@ -924,7 +1000,6 @@ void rank( int iteration )
         total_local_keys    = j;
         total_lesser_keys   = 0;  /* no longer set to 'm', see note above */
     }
-
 }      
 
 
@@ -942,9 +1017,10 @@ int main( int argc, char **argv )
 
 /*  Initialize MPI */
     MPI_Init( &argc, &argv );
-    MPI_Comm_rank( MPI_COMM_WORLD, &my_rank );
-    MPI_Comm_size( MPI_COMM_WORLD, &np_total );
-
+    MPI_Comm_dup(MPI_COMM_WORLD, &comm_main);
+    MPI_Comm_rank( comm_main, &my_rank );
+    MPI_Comm_size( comm_main, &np_total );
+    
 
 /*  Check to see whether total number of processes is within bounds.
     This could in principle be checked in setparams.c, but it is more
@@ -963,45 +1039,25 @@ int main( int argc, char **argv )
     for (comm_size = 1; comm_size < np_total; comm_size *= 2);
     if (comm_size > np_total) comm_size /= 2;
 
+    if (my_rank < comm_size) {
+      MPI_Comm_split(comm_main, 0, my_rank, &comm_work); //working processes
+    } else {
+      MPI_Comm_split(comm_main, 1, my_rank, &comm_work); //reserve processes
+    }
+
 /*  If the actual number of processes doesn't agree with comm_size,
     check if excess ranks need to be masked */
     active = 1;
-    if( comm_size != np_total )
-    {
-        /* check if NPB_NPROCS_STRICT is set */
-        if( my_rank == 0 ) {
-            char *ep = getenv("NPB_NPROCS_STRICT");
-            if (ep && *ep) {
-               if (strchr("nNfF-", *ep) || strcmp(ep, "0") == 0)
-                  active = 0;
-               else if (strcmp(ep, "off") == 0 || strcmp(ep, "OFF") == 0)
-                  active = 0;
-            }
-        }
-        MPI_Bcast(&active, 1, MPI_INT, 0, MPI_COMM_WORLD);
 
-        /* abort if a strict NPROCS enforcement is required */
-        if (active) {
-            if( my_rank == 0 )
-               printf( "\n ERROR: Number of processes (%d)"
-                       " is not a power of two (%d?)\n"
-                       " Exiting program!\n\n", np_total, comm_size );
-            MPI_Abort(MPI_COMM_WORLD, MPI_ERR_OTHER);
-            exit( 1 );
-        }
+/* Set error handler */
+    MPI_Errhandler errh;
+    MPI_Comm_create_errhandler(err_handler, &errh);
+    MPI_Comm_set_errhandler(comm_main, errh);
+    MPI_Barrier(comm_main);
 
-        /* mark excess ranks as inactive */
-        active = ( my_rank >= comm_size )? 0 : 1;
-        MPI_Comm_split(MPI_COMM_WORLD, active, my_rank, &comm_work);
-    }
-    else
-        MPI_Comm_dup(MPI_COMM_WORLD, &comm_work);
-
-    if (!active) {
-        MPI_Finalize();
-        exit( 0 );
-    }
-
+/* Make file names for checkpoints */
+    itoa(my_rank, filename);
+    strcat(filename, ".txt");
 
 /*  Initialize the verification arrays if a valid class */
     for( i=0; i<TEST_ARRAY_SIZE; i++ )
@@ -1045,9 +1101,6 @@ int main( int argc, char **argv )
         printf( " Size:  %ld  (class %c)\n", (long)TOTAL_KEYS*MIN_PROCS, CLASS );
         printf( " Iterations:   %d\n", MAX_ITERATIONS );
         printf( " Total number of processes:  %d\n", np_total );
-        if ( comm_size != np_total )
-            printf( " WARNING: Number of processes"
-                    " is not a power of two (%d active)\n", comm_size );
 
         timeron = check_timer_flag();
     }
@@ -1069,15 +1122,15 @@ int main( int argc, char **argv )
                               1220703125.00 ),   /* Random number gen mult */
                 1220703125.00 );                 /* Random number gen mult */
 
-
 /*  Do one interation for free (i.e., untimed) to guarantee initialization of  
     all data and code pages and respective tables */
-    rank( 1 );  
+    if (my_rank < comm_size) 
+      rank( 1 );  
 
 /*  Start verification counter */
     passed_verification = 0;
 
-    if( my_rank == 0 && CLASS != 'S' ) printf( "\n   iteration\n" );
+    if( my_rank == 0 ) printf( "\n   iteration\n");
 
 /*  Initialize timer  */             
     timer_clear( 0 );
@@ -1094,11 +1147,30 @@ int main( int argc, char **argv )
 /*  This is the main iteration */
     for( iteration=1; iteration<=MAX_ITERATIONS; iteration++ )
     {
-        if( my_rank == 0 && CLASS != 'S' ) printf( "        %d\n", iteration );
-        rank( iteration );
+        if (my_rank < comm_size) {
+          if (error_occured) {
+            printf("my rank: %d; iteration: %d; restores from %s\n", my_rank, iteration, filename);
+            restore();
+            error_occured = 0;
+          }
+          rank( iteration );
+          printf("my rank: %d; iteration: %d; dumps into %s\n", my_rank, iteration, filename);
+          dump();
+        }
+        for (int i = 0; (i < np_total - comm_size) && (i < 2); i++) {
+          if ((my_rank == dead_proc[i][0]) && (iteration == dead_proc[i][1])) {
+            raise(SIGKILL);
+          }
+        }
+        MPI_Barrier(comm_main);
     }
 
-
+    //unused reserves processes finalize
+    if (my_rank >= comm_size) {
+      printf("my rank: %d; finished unused\n", my_rank);
+      MPI_Finalize();
+      return 0;
+    }
 /*  Stop timer, obtain time for processors */
     timer_stop( 0 );
 
