@@ -362,8 +362,6 @@ static void err_handler(MPI_Comm *pcomm, int *perr, ...) {
     error_occured = 1;
     MPI_Comm_size(comm_main, &size);
     MPIX_Comm_failure_ack(comm_main);
-    MPIX_Comm_failure_get_acked(comm_main, &group_f);
-    MPI_Group_size(group_f, &nf);
     MPI_Error_string(err, errstr, &len);
     printf("\nRank %d / %d: Notified of error %s.\n", my_rank, size-1, errstr);
 
@@ -376,6 +374,14 @@ static void err_handler(MPI_Comm *pcomm, int *perr, ...) {
       MPI_Comm_split(comm_main, 0, my_rank, &comm_work); //working processes
     } else {
       MPI_Comm_split(comm_main, 1, my_rank, &comm_work); //reserve processes
+    }
+    MPI_Comm_size(comm_work, &size);
+    if (size < comm_size) {
+      if (my_rank == 0) {
+        printf("Too few processes left, aborting\n");
+      }
+      MPI_Abort(MPI_COMM_WORLD, 1);
+      exit(1);
     }
 }
 
